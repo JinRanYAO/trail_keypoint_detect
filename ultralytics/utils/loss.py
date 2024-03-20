@@ -418,7 +418,8 @@ class v8PoseLoss(v8DetectionLoss):
 
     def __call__(self, preds, batch):
         """Calculate the total loss and detach it."""
-        loss = torch.zeros(6, device=self.device)  # box, cls, dfl, kpt_location, kpt_visibility
+        loss = torch.zeros(5, device=self.device)  # box, cls, dfl, kpt_location, kpt_visibility
+        # loss = torch.zeros(6, device=self.device)
         feats, pred_kpts = preds if isinstance(preds[0], list) else preds[1]
         pred_distri, pred_scores = torch.cat([xi.view(feats[0].shape[0], self.no, -1) for xi in feats], 2).split(
             (self.reg_max * 4, self.nc), 1)
@@ -463,7 +464,9 @@ class v8PoseLoss(v8DetectionLoss):
             keypoints[..., 0] *= imgsz[1]
             keypoints[..., 1] *= imgsz[0]
 
-            loss[1], loss[2], loss[5] = self.calculate_keypoints_loss(fg_mask, target_gt_idx, keypoints, batch_idx,
+            # loss[1], loss[2], loss[5] = self.calculate_keypoints_loss(fg_mask, target_gt_idx, keypoints, batch_idx,
+            #                                                  stride_tensor, target_bboxes, pred_kpts)
+            loss[1], loss[2], _ = self.calculate_keypoints_loss(fg_mask, target_gt_idx, keypoints, batch_idx,
                                                              stride_tensor, target_bboxes, pred_kpts)
 
         loss[0] *= self.hyp.box  # box gain
@@ -471,7 +474,7 @@ class v8PoseLoss(v8DetectionLoss):
         loss[2] *= self.hyp.kobj  # kobj gain
         loss[3] *= self.hyp.cls  # cls gain
         loss[4] *= self.hyp.dfl  # dfl gain
-        loss[5] *= self.hyp.tri
+        # loss[5] *= self.hyp.tri
 
         return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
 

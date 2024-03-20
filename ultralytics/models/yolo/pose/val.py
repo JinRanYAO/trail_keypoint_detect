@@ -2,8 +2,10 @@
 
 from pathlib import Path
 
+import cv2
 import numpy as np
 import torch
+import os
 
 from ultralytics.models.yolo.detect import DetectionValidator
 from ultralytics.utils import LOGGER, ops
@@ -115,8 +117,27 @@ class PoseValidator(DetectionValidator):
                 if self.args.plots:
                     self.confusion_matrix.process_batch(predn, labelsn)
 
+            kpts_error = torch.abs(pred_kpts - tkpts)[0].reshape(1, 3, 3)
+            if tkpts[0, 2, 2] == 0:
+                kpts_error[0, 2, :] = 0
+            n_kpts_error = kpts_error / torch.abs(tbox[0, 2] - tbox[0, 0])
+
             # Append correct_masks, correct_boxes, pconf, pcls, tcls
+            self.pix_error.append((kpts_error, n_kpts_error))
             self.stats.append((correct_bboxes, correct_kpts, pred[:, 4], pred[:, 5], cls.squeeze(-1)))
+
+            # if not correct_kpts.all():
+            #     self.wrong += 1
+            #     raw_img = cv2.imread(batch['im_file'][si])
+            #     cv2.circle(raw_img, (int(pred_kpts[0][0][0]), int(pred_kpts[0][0][1])), 3, (0, 0, 255), thickness=-1)
+            #     cv2.circle(raw_img, (int(pred_kpts[0][1][0]), int(pred_kpts[0][1][1])), 3, (0, 0, 255), thickness=-1)
+            #     cv2.circle(raw_img, (int(tkpts[0][0][0]), int(tkpts[0][0][1])), 3, (255, 0, 0), thickness=-1)
+            #     cv2.circle(raw_img, (int(tkpts[0][1][0]), int(tkpts[0][1][1])), 3, (255, 0, 0), thickness=-1)
+            #     if tkpts.shape[1] == 3:
+            #         cv2.circle(raw_img, (int(pred_kpts[0][2][0]), int(pred_kpts[0][2][1])), 3, (0, 0, 255), thickness=-1)
+            #         cv2.circle(raw_img, (int(tkpts[0][2][0]), int(tkpts[0][2][1])), 3, (255, 0, 0), thickness=-1)
+            #     cv2.putText(raw_img, os.sep.join(str(batch['im_file'][si]).split(os.sep)[4:]), (500, 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            #     cv2.imwrite(os.path.join(self.wrong_save_path, str(self.wrong)+'.jpg'), raw_img)
 
             # Save
             if self.args.save_json:

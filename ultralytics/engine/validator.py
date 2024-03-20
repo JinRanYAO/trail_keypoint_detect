@@ -85,6 +85,7 @@ class BaseValidator:
         self.names = None
         self.seen = None
         self.stats = None
+        self.pix_error = None
         self.confusion_matrix = None
         self.nc = None
         self.iouv = None
@@ -184,6 +185,7 @@ class BaseValidator:
 
             self.run_callbacks('on_val_batch_end')
         stats = self.get_stats()
+        err, n_err = self.compute_pix_err()
         self.check_stats(stats)
         self.speed = dict(zip(self.speed.keys(), (x.t / len(self.dataloader.dataset) * 1E3 for x in dt)))
         self.finalize_metrics()
@@ -203,6 +205,19 @@ class BaseValidator:
                 stats = self.eval_json(stats)  # update stats
             if self.args.plots or self.args.save_json:
                 LOGGER.info(f"Results saved to {colorstr('bold', self.save_dir)}")
+
+            err_dict = {
+                'left_error': err[0].tolist(),
+                'right_error': err[1].tolist(),
+                'hitch_error': err[2].tolist(),
+                'avg_error': torch.mean(err).tolist(),
+                'n_left_error': n_err[0].tolist(),
+                'n_right_error': n_err[1].tolist(),
+                'n_hitch_error': n_err[2].tolist(),
+                'n_avg_error': torch.mean(n_err).tolist()
+            }
+            with open(str(self.save_dir / 'pixel_error.json'), 'w') as f:
+                json.dump(err_dict, f)
             return stats
 
     def match_predictions(self, pred_classes, true_classes, iou, use_scipy=False):

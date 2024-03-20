@@ -4,7 +4,8 @@ import os
 import numpy as np
 from tracker import KalmanFilter
 
-model = YOLO('/home/yons/ultralytics/runs/pose/train4/weights/best.pt')
+model = YOLO('/home/yons/ultralytics/runs/pose/train8/weights/best.pt')
+# model = YOLO('/home/yons/ultralytics/runs/pose/train8/weights/best-sim.onnx')
 seq_path = "/mnt/pool1/yaotong/fisheye_dataset/scene_01/images/2023-12-13-15-34-57"
 
 prev_image = None
@@ -26,7 +27,7 @@ for img_path in sorted(os.listdir(seq_path)):
     curr_keypoints = results[0].keypoints.data.cpu().numpy().reshape(-1, 3)
 
     for i in range(curr_keypoints.shape[0]):
-        if curr_keypoints[i, 2] >= 0.2 and trackers_init[i] == False:
+        if curr_keypoints[i, 2] >= 0.5 and trackers_init[i] == False:
             kf = KalmanFilter()
             mean, cov = kf.initiate(curr_keypoints[i, :2], w, h)
             trackers.append(kf)
@@ -34,7 +35,7 @@ for img_path in sorted(os.listdir(seq_path)):
             covariances.append(cov)
             trackers_init[i] = True
             continue
-        elif curr_keypoints[i, 2] >= 0.2:
+        elif curr_keypoints[i, 2] >= 0.5:
             means[i], covariances[i] = trackers[i].predict(means[i], covariances[i], w, h)
             means[i], covariances[i] = trackers[i].update(means[i], covariances[i], curr_keypoints[i, :2], w, h, mea_type='detect')
 

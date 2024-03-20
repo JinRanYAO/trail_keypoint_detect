@@ -69,8 +69,11 @@ class DetectionValidator(BaseValidator):
         self.metrics.plot = self.args.plots
         self.confusion_matrix = ConfusionMatrix(nc=self.nc, conf=self.args.conf)
         self.seen = 0
+        self.wrong = 0
+        self.wrong_save_path = self.args.wrong_save_path
         self.jdict = []
         self.stats = []
+        self.pix_error = []
 
     def get_desc(self):
         """Return a formatted string summarizing class metrics of YOLO model."""
@@ -144,6 +147,16 @@ class DetectionValidator(BaseValidator):
             self.metrics.process(*stats)
         self.nt_per_class = np.bincount(stats[-1].astype(int), minlength=self.nc)  # number of targets per class
         return self.metrics.results_dict
+
+    def compute_pix_err(self):
+        pix_error = self.pix_error
+        err_all = torch.cat([x[0] for x in pix_error], dim=0).cpu()
+        n_err_all = torch.cat([x[1] for x in pix_error], dim=0).cpu()
+        err_dis = torch.sqrt(torch.sum(err_all[:, :, :2] ** 2, dim=2))
+        n_err_dis = torch.sqrt(torch.sum(n_err_all[:, :, :2] ** 2, dim=2))
+        err_avg = torch.mean(err_dis, dim=0)
+        n_err_avg = torch.mean(n_err_dis, dim=0)
+        return err_avg, n_err_avg
 
     def print_results(self):
         """Prints training/validation set metrics per class."""
